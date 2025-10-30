@@ -9,7 +9,6 @@
 build/
 **/build/
 **/caches/
-.gradle/caches/
 
 # Local configuration
 local.properties
