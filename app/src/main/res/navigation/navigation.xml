@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:app="http://schemas.android.com/apk/res-auto"
+android:id="@+id/ocr_nav_graph"
+app:startDestination="@id/mainFrag">
+
+<fragment
+    android:id="@+id/captureFrag"
+    android:name="apc.offline.mrd.ocrlib.CaptureFrag"
+    android:label="CaptureFrag" >
+    <action
+        android:id="@+id/action_captureFrag_to_outputFrag"
+        app:destination="@id/outputFrag" />
+    <action
+        android:id="@+id/action_captureFrag_to_mainFrag"
+        app:destination="@id/mainFrag"
+        app:popUpTo="@id/mainFrag"
+        app:popUpToInclusive="true" />
+</fragment>
+<fragment
+    android:id="@+id/outputFrag"
+    android:name="apc.offline.mrd.ocrlib.OutputFrag"
+    android:label="OutputFrag" />
+<fragment
+    android:id="@+id/mainFrag"
+    android:name="apc.offline.mrd.ocrlib.MainFrag"
+    android:label="MainFrag" >
+    <action
+        android:id="@+id/action_mainFrag_to_captureFrag"
+        app:destination="@id/captureFrag"
+        app:popUpToInclusive="false" />
+</fragment>
+</navigation>

@@ -1,0 +1,346 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <data>
+        <variable
+            name="vm"
+            type="apc.offline.mrd.ocrlib.OcrViewModel" />
+    </data>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#D38EF4">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:padding="2dp"
+            android:layout_margin="2dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/verTv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_weight="1"
+                android:layout_margin="2dp"
+                android:padding="2dp"
+                android:text="req."
+                />
+            <TextView
+                android:id="@+id/locTv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black"
+                android:textSize="12sp"
+                android:layout_weight="1"
+
+                android:textStyle="bold"
+                android:layout_margin="2dp"
+                android:padding="2dp"
+                android:text="loc"
+                />
+            <TextView
+                android:id="@+id/timeTv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black"
+                android:textSize="12sp"
+                android:layout_weight="1"
+
+                android:textStyle="bold"
+                android:layout_margin="2dp"
+                android:padding="2dp"
+                android:text="time"
+                />
+        </LinearLayout>
+
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:id="@+id/scrollView"
+            android:layout_height="match_parent"
+            android:padding="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingBottom="24dp">
+
+
+
+                <!-- Account ID Section -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginBottom="24dp">
+
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Acc. Id :"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/black"
+                        android:layout_marginEnd="8dp" />
+
+                    <TextView
+                        android:id="@+id/accId"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@{vm.accId}"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@android:color/holo_blue_dark" />
+                </LinearLayout>
+                <!-- Reason Dropdown -->
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Probe not possible reason"
+                    app:boxBackgroundMode="outline"
+                    android:layout_marginBottom="16dp">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/probeExps"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:visibility="gone"
+                        android:drawableEnd="@drawable/baseline_arrow_drop_down_24"
+                        android:hint="Probe not possible reason"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/red"
+                        android:padding="12dp"
+                        />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Status"
+                    android:textSize="20sp"
+                    android:visibility="gone"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"
+                    android:layout_marginEnd="8dp" />
+                <!-- Radio Buttons -->
+                <RadioGroup
+                    android:id="@+id/remRg"
+                    android:visibility="gone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginBottom="16dp">
+
+                    <RadioButton
+                        android:id="@+id/OKRb"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="OK"
+                        android:textSize="16sp" />
+
+                    <RadioButton
+                        android:id="@+id/IDFRb"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="IDF"
+                        android:textSize="16sp" />
+
+                    <RadioButton
+                        android:id="@+id/TDMRRb"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="TDMR"
+                        android:textSize="16sp" />
+                </RadioGroup>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/statusLL"
+                    android:visibility="visible"
+                    android:orientation="vertical">
+
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:id="@+id/fieldExp"
+                        android:visibility="gone"
+                        android:layout_height="wrap_content"
+                        android:hint="Field exception"
+                        android:layout_marginBottom="24dp">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/fieldExps"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:drawableEnd="@drawable/baseline_arrow_drop_down_24"
+                            android:hint="Field exception"
+                            android:textStyle="bold"
+                            android:textColor="@color/red"
+                            android:textSize="16sp"
+                            android:focusable="false"
+                            android:padding="12dp"
+                            />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/readingsRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        android:layout_marginBottom="16dp" />
+
+
+
+
+                    <!-- Meter Serial Number -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="visible"
+                        android:hint="Enter Meter Serial No."
+                        android:layout_marginBottom="16dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/m_no_et"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:digits="abcdefghijklmnopqrstuvwxyz1234567890"
+                            android:hint="Enter Meter Serial No." />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Meter Make Dropdown -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Select Meter Make"
+                        android:visibility="visible"
+                        android:layout_marginBottom="16dp">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/meterMakes"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Select Meter Make"
+                            android:drawableEnd="@drawable/baseline_arrow_drop_down_24"
+                            android:padding="12dp"
+                            android:focusable="false"
+                            android:visibility="gone"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            />
+                    </com.google.android.material.textfield.TextInputLayout>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/getDataBt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="GET OCR DATA"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/teal_700"
+                        android:textColor="@android:color/white"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp" />
+                    <!-- OCR Exception Dropdown -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:id="@+id/ocrExp"
+                        android:visibility="visible"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="24dp">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/ocrExps"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@={vm.ocrRes.ocr_npr}"
+                            android:drawableEnd="@drawable/baseline_arrow_drop_down_24"
+                            android:textSize="16sp"
+                            android:visibility="gone"
+                            android:hint="Select OCR Not possible reason \n (if applicable)"
+                            android:textStyle="bold"
+                            android:focusable="false"
+                            android:textColor="@color/red"
+                            android:padding="12dp"
+                            />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+
+
+                    <!-- Submit Button -->
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/subBt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="SUBMIT"
+                        android:textSize="18sp"
+                        android:visibility="gone"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/purple_700"
+                        android:textColor="@android:color/white"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="24dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/manBt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Make Ocr Correction"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/orange"
+                        android:textColor="@android:color/black"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="24dp" />
+
+                    <TextView
+                        android:id="@+id/verTv2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="2dp"
+                        android:padding="2dp"
+                        android:text="version"
+                        android:visibility="gone"
+                        android:textColor="#00FF0A"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintHorizontal_bias="1.0"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintVertical_bias="0.0" />
+                </LinearLayout>
+            </LinearLayout>
+
+
+        </androidx.core.widget.NestedScrollView>
+
+    </LinearLayout>
+</layout>

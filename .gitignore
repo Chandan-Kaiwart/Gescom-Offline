@@ -1,0 +1,34 @@
+# Android Studio & IntelliJ
+*.iml
+.idea/
+!.idea/codeStyles
+!.idea/runConfigurations
+
+# Gradle
+.gradle/
+build/
+**/build/
+**/caches/
+.gradle/caches/
+
+# Local configuration
+local.properties
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# External build caches
+.externalNativeBuild/
+.cxx/
+
+# Captures & misc
+captures/
+output.json
+
+# Keystore files (keep local!)
+*.jks
+*.keystore
+
+# Logs
+*.log
