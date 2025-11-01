@@ -165,7 +165,8 @@ import apc.offline.mrd.ocrlib.dataClasses.response.OcrResult
 
 class OcrViewModel : ViewModel() {
 
-    var offlineOcrHelper: OfflineOcrHelper? = null
+
+    var offlineOcrHelper: OfflineOcrHelperV2? = null
     // ✅ FIXED - Single declaration of each variable
     val res = MutableLiveData<UploadMeterReadingImageRes>()
     val inp = MutableLiveData<OcrRequest>()

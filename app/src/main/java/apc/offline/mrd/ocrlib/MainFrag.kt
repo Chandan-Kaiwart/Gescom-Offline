@@ -365,9 +365,10 @@ class MainFrag : Fragment() {
 
                     lifecycleScope.launch(Dispatchers.Default) {
                         try {
+                            // ✅ CHANGE 1: Use OfflineOcrHelperV2 instead of OfflineOcrHelper
                             if (vm.offlineOcrHelper == null) {
                                 withContext(Dispatchers.Main) {
-                                    vm.offlineOcrHelper = OfflineOcrHelper(mContext)
+                                    vm.offlineOcrHelper = OfflineOcrHelperV2(mContext)
                                 }
                             }
 
@@ -378,21 +379,42 @@ class MainFrag : Fragment() {
                                     it.name.equals(vm.registers.value?.get(position), ignoreCase = true)
                                 }?.id ?: 1
 
+                                // ✅ CHANGE 2: Call processImage with unit parameter
                                 val result = vm.offlineOcrHelper!!.processImage(bitmap, unit)
 
                                 withContext(Dispatchers.Main) {
-                                    if (result.success) {
+                                    // ✅ CHANGE 3: Remove result.success check - new version returns OcrResult directly
+                                    // Check if reading is not empty instead
+                                    if (result.reading.isNotEmpty()) {
                                         successCount++
                                         vm.ocrResults.value?.get(position)?.apply {
-                                            ocr_reading = result.meterReading
-                                            meter_reading = result.meterReading
-                                            ocr_exception_code = result.exceptionCode
-                                            ocr_exception_msg = ocrExps.find { it.id == result.exceptionCode }?.name ?: ""
+                                            // ✅ CHANGE 4: Use result.reading directly
+                                            ocr_reading = result.reading
+                                            meter_reading = result.reading
+
+                                            // ✅ CHANGE 5: Set exception code to 1 (success) if reading found
+                                            ocr_exception_code = 1
+                                            ocr_exception_msg = ""
+
+                                            // ✅ CHANGE 6: Use result.meterNumber (only for KWH/unit=1)
                                             ocr_mno = result.meterNumber
+
                                             ocr_meter_make = ""
-                                            ocr_unit = result.ocrUnit
+
+                                            // ✅ CHANGE 7: Set ocr_unit based on unit parameter
+                                            ocr_unit = unit.toString()
+
                                             this.unit = unit
                                             ocr_ref_id = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
+                                        }
+
+                                        Log.d("OCR_SUCCESS", "Position $position: reading=${result.reading}, mno=${result.meterNumber}")
+                                    } else {
+                                        // ✅ CHANGE 8: Handle failed detection
+                                        Log.w("OCR_FAILED", "Position $position: No reading detected")
+                                        vm.ocrResults.value?.get(position)?.apply {
+                                            ocr_exception_code = 22 // "Not detected" exception
+                                            ocr_exception_msg = ocrExps.find { it.id == 22 }?.name ?: "Not detected"
                                         }
                                     }
                                 }
@@ -402,18 +424,32 @@ class MainFrag : Fragment() {
                                 pd.dismiss()
 
                                 if (successCount > 0) {
-                                    val mno = vm.ocrResults.value?.mapNotNull { it.ocr_mno }?.maxByOrNull { it.length }
+                                    // ✅ CHANGE 9: Get longest meter number from all results
+                                    val mno = vm.ocrResults.value
+                                        ?.mapNotNull { it.ocr_mno }
+                                        ?.filter { it.isNotEmpty() }
+                                        ?.maxByOrNull { it.length }
+
                                     if (!mno.isNullOrEmpty()) {
                                         vm.ocrRes.value?.meter_no = mno
                                         binding.mNoEt.setText(mno)
+                                        Log.d("OCR_MNO", "Meter Number detected: $mno")
                                     }
 
                                     binding.readingsRecyclerView.adapter?.notifyDataSetChanged()
                                     binding.subBt.visibility = View.VISIBLE
 
-                                    Toast.makeText(mContext, "OCR Complete! $successCount readings detected.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        mContext,
+                                        "OCR Complete! $successCount readings detected.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 } else {
-                                    Toast.makeText(mContext, "No readings detected. Try again.", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(
+                                        mContext,
+                                        "No readings detected. Try again.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                 }
                             }
                         } catch (e: Exception) {
