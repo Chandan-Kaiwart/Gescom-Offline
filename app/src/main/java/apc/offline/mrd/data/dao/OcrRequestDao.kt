@@ -15,7 +15,8 @@ interface OcrRequestDao {
 
     @Query("UPDATE ocr_request SET isSynced = 1 WHERE id = :id")
     suspend fun markAsSynced(id: Int)
-
+    @Query("UPDATE ocr_request SET localReqId = :newId WHERE localReqId = :oldId")
+    suspend fun updateLocalReqId(oldId: Int, newId: Int)
     @Query("SELECT * FROM ocr_request WHERE consumerNo = :consumerNo")
     fun getRequestsByConsumer(consumerNo: String): Flow<List<OcrRequestEntity>>
 

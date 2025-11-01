@@ -78,19 +78,32 @@ class UnifiedSyncWorker(
 
             unsyncedRequests.forEach { request ->
                 try {
-                    val success = uploadOcrRequest(request)
+                    // ✅ STEP 1: Create OCR Request on server and get actual ID
+                    val actualServerId = createOcrRequestOnServer(request)
 
-                    if (success) {
-                        database.ocrRequestDao().markAsSynced(request.id)
-                        synced++
-                        Log.d(TAG, "✅ OCR Request localReqId=${request.localReqId} synced")
+                    if (actualServerId != null) {
+                        Log.d(TAG, "✅ Got server ID: $actualServerId for local ID: ${request.localReqId}")
+
+                        // ✅ STEP 2: Update ALL related records with actual server ID
+                        val updateSuccess = updateLocalIdToServerId(request.localReqId, actualServerId)
+
+                        if (updateSuccess) {
+                            // ✅ STEP 3: Mark OCR request as synced
+                            database.ocrRequestDao().markAsSynced(request.id)
+                            synced++
+                            Log.d(TAG, "✅ OCR Request synced: Local ${request.localReqId} → Server $actualServerId")
+                        } else {
+                            failed++
+                            Log.e(TAG, "❌ Failed to update IDs for request ${request.localReqId}")
+                        }
                     } else {
                         failed++
-                        Log.e(TAG, "❌ OCR Request localReqId=${request.localReqId} failed")
+                        Log.e(TAG, "❌ Failed to get server ID for request ${request.localReqId}")
                     }
+
                 } catch (e: Exception) {
                     failed++
-                    Log.e(TAG, "❌ Error syncing OCR request: ${e.message}")
+                    Log.e(TAG, "❌ Error syncing OCR request: ${e.message}", e)
                 }
             }
 
@@ -100,6 +113,77 @@ class UnifiedSyncWorker(
 
         return Pair(synced, failed)
     }
+    // ✅ FINAL FIX: Use lowercase camelCase keys (not UPPERCASE)
+    private suspend fun createOcrRequestOnServer(request: OcrRequestEntity): Int? {
+        return try {
+            val reqReadingValuesList = gson.fromJson(
+                request.reqReadingValues,
+                Array<String>::class.java
+            ).toList()
+
+            // ✅ CRITICAL FIX: Use lowercase camelCase keys
+            val payload = mapOf(
+                "agencyId" to request.agencyId.toString(),                    // ✅ lowercase
+                "boardCode" to request.boardCode.toString(),                  // ✅ lowercase
+                "consumerNo" to request.consumerNo.toString(),                // ✅ lowercase
+                "meterReaderId" to request.meterReaderId.toString(),          // ✅ lowercase
+                "meterReaderMobileNo" to request.meterReaderMobile.toString(), // ✅ lowercase
+                "meterReaderName" to request.meterReaderName.toString(),      // ✅ lowercase
+                "subDivisionCode" to request.subDivisionCode.toString(),      // ✅ lowercase
+                "subDivisionName" to request.subDivisionName.toString(),      // ✅ lowercase
+                "meterMake" to (request.meterMake.takeIf { it.isNotEmpty() } ?: ""), // ✅ lowercase
+                "reqReadingValues" to reqReadingValuesList                    // ✅ lowercase
+            )
+
+            Log.d(TAG, "📤 Payload: $payload")
+
+            val response = apiService.createOcrRequest(payload).execute()
+
+            if (response.isSuccessful) {
+                val responseBody = response.body()
+                val serverId = (responseBody?.get("id") as? Double)?.toInt()
+
+                Log.d(TAG, "✅ Server response: $responseBody")
+                Log.d(TAG, "✅ Server ID: $serverId")
+
+                serverId
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "❌ API Error: ${response.code()} - $errorBody")
+                null
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception: ${e.message}", e)
+            null
+        }
+    }
+    // ✅ NEW FUNCTION: Update local IDs to server IDs in all tables
+    private suspend fun updateLocalIdToServerId(localId: Int, serverId: Int): Boolean {
+        return try {
+            Log.d(TAG, "🔄 Updating IDs: Local $localId → Server $serverId")
+
+            // Update in meter_reading table
+            val meterReadingsUpdated = database.meterReadingDao()
+                .updateOcrReqId(oldId = localId, newId = serverId)
+            Log.d(TAG, "📊 Updated $meterReadingsUpdated meter readings")
+
+            // Update in manual_reading table
+            val manualReadingsUpdated = database.manualReadingDao()
+                .updateOcrReqId(oldId = localId, newId = serverId)
+            Log.d(TAG, "📝 Updated $manualReadingsUpdated manual readings")
+
+            // Update in ocr_request table
+            database.ocrRequestDao().updateLocalReqId(oldId = localId, newId = serverId)
+            Log.d(TAG, "✅ Updated OCR request ID")
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error updating IDs: ${e.message}", e)
+            false
+        }
+    }
+
 
     private suspend fun uploadOcrRequest(request: OcrRequestEntity): Boolean {
         return try {
@@ -197,6 +281,13 @@ class UnifiedSyncWorker(
             val caNo = reading.ca_no.toRequestBody("text/plain".toMediaTypeOrNull())
             val imagePath = "uploaded".toRequestBody("text/plain".toMediaTypeOrNull()) // ✅ Don't send local path
             val meterNo = reading.meter_no.toRequestBody("text/plain".toMediaTypeOrNull())
+
+
+// ✅ DEBUG LOG ADD KARO
+            Log.d("DEBUG_METER", "🔍 Meter No from DB: '${reading.meter_no}'")
+            Log.d("DEBUG_METER", "🔍 Meter No length: ${reading.meter_no.length}")
+            Log.d("DEBUG_METER", "🔍 Meter No is blank: ${reading.meter_no.isBlank()}")
+
             val meterReading = reading.meter_reading.toRequestBody("text/plain".toMediaTypeOrNull())
             val latLong = reading.lat_long.toRequestBody("text/plain".toMediaTypeOrNull())
             val address = reading.address.toRequestBody("text/plain".toMediaTypeOrNull())

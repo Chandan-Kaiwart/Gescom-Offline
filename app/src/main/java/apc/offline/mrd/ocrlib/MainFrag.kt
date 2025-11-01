@@ -162,10 +162,10 @@ class MainFrag : Fragment() {
             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
 
         binding.timeTv.setText(versionCode+"\n"+istTime)
-
-        fetchMeterReadingMakes(mContext)
-        fetchMeterReadingExceptions(mContext)
-        fetchMeterReadingUnits(mContext)
+//
+//        fetchMeterReadingMakes(mContext)
+//        fetchMeterReadingExceptions(mContext)
+//        fetchMeterReadingUnits(mContext)
 
         if (vm.inp.value?.reqId==-1 || vm.inp.value?.reqId==null){
             Log.d("REQ>>1",vm.inp.value?.reqId.toString())
@@ -616,7 +616,9 @@ class MainFrag : Fragment() {
                                     vm.ocrRes.value?.meter_make
                                 } ?: "",
                                 image_path = imagePath,
-                                meter_no = ocrResult?.ocr_mno ?: "",
+                                meter_no = binding.mNoEt.text.toString().ifEmpty {
+                                    ocrResult?.ocr_mno ?: ""
+                                },
                                 meter_reading = ocrResult?.manual_reading?.ifEmpty {
                                     ocrResult.ocr_reading
                                 } ?: "",
@@ -629,7 +631,7 @@ class MainFrag : Fragment() {
                                 mru = "1",
                                 isSynced = false,
                                 agency = "1",
-                                exception = "1",
+                                exception = "48",
                                 location_type = "1",
                                 ocr_unit = ocrResult?.ocr_unit ?: "",
                                 location = "1",
@@ -640,7 +642,7 @@ class MainFrag : Fragment() {
                                 responseTime = System.currentTimeMillis().toString(),
                                 ocrRequestId = localReqId.toString()
                             )
-
+                            Log.d("DEBUG_SAVE", "Saving meter_no: '${meterReadingEntity.meter_no}'")
                             database.meterReadingDao().insertReading(meterReadingEntity)
                             savedCount++
                             Log.d("DEBUG_SAVE", "🔹 Image Path: $imagePath")
@@ -1101,7 +1103,7 @@ class MainFrag : Fragment() {
                         mru = "1",
                         isSynced = false,
                         agency = "1",
-                        exception = "1", // ✅ FIX: Always "1"
+                        exception = "48", // ✅ FIX: Always "1"
                         location_type = "1",
                         ocr_unit = ocrResult.ocr_unit,
                         location = "1",
@@ -1112,7 +1114,7 @@ class MainFrag : Fragment() {
                         responseTime = System.currentTimeMillis().toString(),
                         ocrRequestId = vm.inp.value?.reqId?.toString() ?: "0" // ✅ FIX: Server reqId as string
                     )
-
+                    Log.d("DEBUG_SAVE", "Saving meter_no: '${meterReadingEntity.meter_no}'")
                     // Insert into database
                     database.meterReadingDao().insertReading(meterReadingEntity)
                     savedCount++
@@ -1543,7 +1545,7 @@ class MainFrag : Fragment() {
             "meter_reader" to (vm.inp.value?.METER_READER_ID?.ifEmpty { "1" } ?: "1"),
             "consumer" to (vm.inp.value?.CONSUMER_NO?.ifEmpty { "1" } ?: "1"),
             "mru" to "1",
-            "exception" to if (vm.ocrRes.value!!.ocr_npr.isNotEmpty()) "48" else "1",
+            "exception" to "48",
             "meter_model" to vm.ocrRes.value!!.meter_make,
             "location_type" to "1",
             "location" to "1",

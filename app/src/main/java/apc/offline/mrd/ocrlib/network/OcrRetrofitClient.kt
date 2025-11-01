@@ -28,7 +28,6 @@ object OcrRetrofitClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 
-    // ✅ FIX: Use a function instead of properties to avoid naming conflicts
     fun getApiService(): OcrApiService {
         return retrofit.create(OcrApiService::class.java)
     }

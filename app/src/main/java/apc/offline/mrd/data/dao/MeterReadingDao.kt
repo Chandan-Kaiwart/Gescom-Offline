@@ -17,6 +17,8 @@ interface MeterReadingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(readings: List<MeterReadingEntity>)
 
+    @Query("UPDATE meter_reading SET ocrReqId = :newId WHERE ocrReqId = :oldId")
+    suspend fun updateOcrReqId(oldId: Int, newId: Int): Int
     @Query("SELECT * FROM meter_reading ORDER BY id DESC")
     fun getAllReadings(): Flow<List<MeterReadingEntity>>
 

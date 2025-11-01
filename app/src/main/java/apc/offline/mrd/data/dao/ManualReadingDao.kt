@@ -17,6 +17,8 @@ interface ManualReadingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(readings: List<ManualReadingEntity>)
 
+    @Query("UPDATE manual_reading SET ocrRequestId = :newId WHERE ocrRequestId = :oldId")
+    suspend fun updateOcrReqId(oldId: Int, newId: Int): Int
     @Query("SELECT * FROM manual_reading ORDER BY id DESC")
     fun getAllManualReadings(): Flow<List<ManualReadingEntity>>
 
