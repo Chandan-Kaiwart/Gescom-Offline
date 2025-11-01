@@ -83,11 +83,12 @@ interface OcrApiService {
      * POST https://test.vidyut-suvidha.in/meter-reading/upload
      */
     @Multipart
-    @POST("meter-reading/upload")
+    @POST("meter-reading")
     fun uploadMeterImage(
         @Header("Authorization") token: String,
-        @Header("accept") accept: String = "*/*",
+        @Header("accept") accept: RequestBody,
         @Part file: MultipartBody.Part,
+        @Part("ocrRequestId") ocrRequestId: RequestBody, // ✅ CHANGED: "localReqId" → "ocrRequestId"
         @Part("reading_date_time") readingDateTime: RequestBody,
         @Part("site_location") siteLocation: RequestBody,
         @Part("ca_no") caNo: RequestBody,

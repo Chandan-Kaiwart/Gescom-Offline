@@ -8,6 +8,30 @@
             name="vm"
             type="apc.offline.mrd.ocrlib.OcrViewModel" />
     </data>
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- TOP FRAME (Fixed Header) -->
+    <LinearLayout
+        android:id="@+id/topFrame"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#1F77B9"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Meter Reading App"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -343,4 +367,6 @@
         </androidx.core.widget.NestedScrollView>
 
     </LinearLayout>
+
+</LinearLayout>
 </layout>

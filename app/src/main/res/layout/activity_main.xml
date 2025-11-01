@@ -2,186 +2,196 @@
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <ScrollView
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <!-- TOP FRAME (Fixed Header) -->
+        <LinearLayout
+            android:id="@+id/topFrame"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="56dp"
+            android:background="#1F77B9"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            app:layout_constraintTop_toTopOf="parent">
 
-            <!-- ACCOUNT ID -->
-            <EditText
-                android:id="@+id/accIdEt"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Meter Reading App"
+                android:textColor="@android:color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- MIDDLE SCROLLABLE CONTENT -->
+        <ScrollView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintTop_toBottomOf="@id/topFrame"
+            app:layout_constraintBottom_toTopOf="@id/bottomFrame"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:hint="CUSTOMER ID"
-                android:inputType="text"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.0" />
+                android:padding="16dp">
 
-            <!-- DISCOM -->
-            <EditText
-                android:id="@+id/discomEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="1"
-                android:visibility="visible"
-                android:hint="DISCOM"
-                android:inputType="text"
-                app:layout_constraintTop_toBottomOf="@+id/accIdEt"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- AGENCY_NAME -->
-            <EditText
-                android:id="@+id/agencyNameEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="1"
-                android:visibility="visible"
-                android:hint="AGENCY NAME"
-                android:inputType="text"
-                app:layout_constraintTop_toBottomOf="@+id/discomEt"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- NAME -->
-            <EditText
-                android:id="@+id/meterReaderNameEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="1"
-                android:visibility="visible"
-                android:hint="METER READER NAME"
-                android:inputType="text"
-                app:layout_constraintTop_toBottomOf="@+id/agencyNameEt"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- ID -->
-            <EditText
-                android:id="@+id/meterReaderIdEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:visibility="visible"
-                android:hint="METER READER ID"
-                android:inputType="text"
-                app:layout_constraintTop_toBottomOf="@+id/meterReaderNameEt"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- MOBILE NO -->
-            <EditText
-                android:id="@+id/mobileNoEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:hint="METER READER MOBILE NO"
-                android:inputType="phone"
-                android:maxLength="10"
-                android:text="9999999999"
-                android:visibility="visible"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/meterReaderIdEt" />
-
-            <!-- DIVISION CODE -->
-            <EditText
-                android:id="@+id/divisionCodeEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="1"
-                android:visibility="visible"
-                android:hint="SUB DIVISION CODE"
-                android:inputType="text"
-                app:layout_constraintTop_toBottomOf="@+id/mobileNoEt"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <!-- DIVISION NAME -->
-            <EditText
-                android:id="@+id/divisionNameEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="1"
-                android:visibility="visible"
-                android:hint="SUB DIVISION NAME"
-                android:inputType="text"
-                app:layout_constraintTop_toBottomOf="@+id/divisionCodeEt"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Select Meter Make"
-                android:layout_margin="16dp"
-                android:id="@+id/meterMakeTil"
-                android:visibility="gone"
-                app:layout_constraintTop_toBottomOf="@+id/divisionNameEt">
-
-                <AutoCompleteTextView
-                    android:id="@+id/meterMakeEt"
+                <!-- ACCOUNT ID -->
+                <EditText
+                    android:id="@+id/accIdEt"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:drawableEnd="@drawable/baseline_arrow_drop_down_24"
-                    android:focusable="false"
+                    android:layout_marginBottom="12dp"
+                    android:hint="CUSTOMER ID"
+                    android:inputType="text"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <!-- DISCOM -->
+                <EditText
+                    android:id="@+id/discomEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="1"
+                    android:hint="DISCOM"
+                    android:inputType="text"
+                    app:layout_constraintTop_toBottomOf="@id/accIdEt" />
+
+                <!-- AGENCY NAME -->
+                <EditText
+                    android:id="@+id/agencyNameEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="1"
+                    android:hint="AGENCY NAME"
+                    android:inputType="text"
+                    app:layout_constraintTop_toBottomOf="@id/discomEt" />
+
+                <!-- METER READER NAME -->
+                <EditText
+                    android:id="@+id/meterReaderNameEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="1"
+                    android:hint="METER READER NAME"
+                    android:inputType="text"
+                    app:layout_constraintTop_toBottomOf="@id/agencyNameEt" />
+
+                <!-- METER READER ID -->
+                <EditText
+                    android:id="@+id/meterReaderIdEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:hint="METER READER ID"
+                    android:inputType="text"
+                    app:layout_constraintTop_toBottomOf="@id/meterReaderNameEt" />
+
+                <!-- MOBILE NO -->
+                <EditText
+                    android:id="@+id/mobileNoEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:hint="METER READER MOBILE NO"
+                    android:inputType="phone"
+                    android:maxLength="10"
+                    app:layout_constraintTop_toBottomOf="@id/meterReaderIdEt" />
+
+                <!-- DIVISION CODE -->
+                <EditText
+                    android:id="@+id/divisionCodeEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="1"
+                    android:hint="SUB DIVISION CODE"
+                    android:inputType="text"
+                    app:layout_constraintTop_toBottomOf="@id/mobileNoEt" />
+
+                <!-- DIVISION NAME -->
+                <EditText
+                    android:id="@+id/divisionNameEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="1"
+                    android:hint="SUB DIVISION NAME"
+                    android:inputType="text"
+                    app:layout_constraintTop_toBottomOf="@id/divisionCodeEt" />
+
+                <!-- METER MAKE DROPDOWN -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/meterMakeTil"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
                     android:hint="Select Meter Make"
-                    android:padding="12dp"
-                    android:textSize="18sp" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:visibility="gone"
+                    app:layout_constraintTop_toBottomOf="@id/divisionNameEt">
 
+                    <AutoCompleteTextView
+                        android:id="@+id/meterMakeEt"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:drawableEnd="@drawable/baseline_arrow_drop_down_24"
+                        android:focusable="false"
+                        android:padding="12dp"
+                        android:textSize="18sp" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- REQ_READING_VALUES (comma-separated) -->
-            <EditText
-                android:id="@+id/readingValuesEt"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:hint="REQ READING VALUES (e.g., KWH,KW)"
-                android:inputType="text"
-                android:text="KWH,KW,DATE,TIME,PF"
-                android:visibility="visible"
-                app:layout_constraintTop_toBottomOf="@+id/meterMakeTil"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
+                <!-- READING VALUES -->
+                <EditText
+                    android:id="@+id/readingValuesEt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:hint="REQ READING VALUES (e.g., KWH,KW)"
+                    android:text="KWH,KW,DATE,TIME,PF"
+                    android:inputType="text"
+                    app:layout_constraintTop_toBottomOf="@id/meterMakeTil" />
 
-            <!-- Button -->
-            <Button
-                android:id="@+id/button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="Start AI based Meter Reading"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/readingValuesEt" />
+                <!-- START BUTTON -->
+                <Button
+                    android:id="@+id/button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/white"
+                    android:layout_marginTop="16dp"
+                    android:backgroundTint="#1F77B9"
+                    android:text="Start AI based Meter Reading"
+                    app:layout_constraintTop_toBottomOf="@id/readingValuesEt" />
 
-            <!-- Upload Button - Now properly aligned below first button -->
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </ScrollView>
+
+        <!-- BOTTOM FRAME (Fixed Footer) -->
+        <LinearLayout
+            android:id="@+id/bottomFrame"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/white"
+            android:elevation="8dp"
+            android:orientation="vertical"
+            android:padding="12dp"
+            app:layout_constraintBottom_toBottomOf="parent">
+
             <Button
                 android:id="@+id/syncBtn"
-                android:layout_width="wrap_content"
+                android:textColor="@color/white"
+                android:backgroundTint="#1F77B9"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="Upload Data"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/button" />
+                android:text="Upload Data" />
+        </LinearLayout>
 
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </ScrollView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </layout>

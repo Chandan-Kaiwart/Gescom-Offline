@@ -35,17 +35,14 @@ class UnifiedSyncWorker(
             var totalSynced = 0
             var totalFailed = 0
 
-            // 1. Sync OCR Requests
             val (ocrSynced, ocrFailed) = syncOcrRequests()
             totalSynced += ocrSynced
             totalFailed += ocrFailed
 
-            // 2. Sync Meter Readings
             val (meterSynced, meterFailed) = syncMeterReadings()
             totalSynced += meterSynced
             totalFailed += meterFailed
 
-            // 3. Sync Manual Readings
             val (manualSynced, manualFailed) = syncManualReadings()
             totalSynced += manualSynced
             totalFailed += manualFailed
@@ -68,10 +65,6 @@ class UnifiedSyncWorker(
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 1. SYNC OCR REQUESTS
-    // ═══════════════════════════════════════════════════════════
-
     private suspend fun syncOcrRequests(): Pair<Int, Int> {
         var synced = 0
         var failed = 0
@@ -90,10 +83,10 @@ class UnifiedSyncWorker(
                     if (success) {
                         database.ocrRequestDao().markAsSynced(request.id)
                         synced++
-                        Log.d(TAG, "✅ OCR Request ID ${request.id} synced")
+                        Log.d(TAG, "✅ OCR Request localReqId=${request.localReqId} synced")
                     } else {
                         failed++
-                        Log.e(TAG, "❌ OCR Request ID ${request.id} failed")
+                        Log.e(TAG, "❌ OCR Request localReqId=${request.localReqId} failed")
                     }
                 } catch (e: Exception) {
                     failed++
@@ -116,6 +109,7 @@ class UnifiedSyncWorker(
             ).toList()
 
             val payload = mapOf(
+                "id" to request.localReqId,
                 "agencyId" to request.agencyId,
                 "boardCode" to request.boardCode,
                 "consumerNo" to request.consumerNo,
@@ -133,10 +127,11 @@ class UnifiedSyncWorker(
             val response = apiService.createOcrRequest(payload).execute()
 
             if (response.isSuccessful) {
-                Log.d(TAG, "✅ OCR Request uploaded successfully")
+                Log.d(TAG, "✅ OCR Request uploaded (localReqId: ${request.localReqId})")
                 true
             } else {
-                Log.e(TAG, "❌ Upload failed: ${response.code()} - ${response.message()}")
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "❌ Upload failed: ${response.code()} - $errorBody")
                 false
             }
 
@@ -145,10 +140,6 @@ class UnifiedSyncWorker(
             false
         }
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // 2. SYNC METER READINGS (WITH IMAGES)
-    // ═══════════════════════════════════════════════════════════
 
     private suspend fun syncMeterReadings(): Pair<Int, Int> {
         var synced = 0
@@ -163,7 +154,6 @@ class UnifiedSyncWorker(
 
             unsyncedReadings.forEach { reading ->
                 try {
-                    // ✅ FIXED: Use multipart upload for meter readings
                     val success = uploadMeterReadingWithImage(reading)
 
                     if (success) {
@@ -187,7 +177,6 @@ class UnifiedSyncWorker(
         return Pair(synced, failed)
     }
 
-    // ✅ NEW: Upload meter reading with multipart image
     private suspend fun uploadMeterReadingWithImage(reading: MeterReadingEntity): Boolean {
         return try {
             val imageFile = File(reading.image_path)
@@ -197,15 +186,16 @@ class UnifiedSyncWorker(
                 return false
             }
 
-            // Create multipart request
             val requestFile = imageFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
             val filePart = MultipartBody.Part.createFormData("file", imageFile.name, requestFile)
 
-            // Create request bodies for all fields
+            // ✅ CRITICAL FIX: Create RequestBody for EACH field
+            val accept = "*/*".toRequestBody("text/plain".toMediaTypeOrNull())
+            val ocrRequestId = reading.ocrReqId.toString().toRequestBody("text/plain".toMediaTypeOrNull())
             val readingDateTime = reading.reading_data_time.toRequestBody("text/plain".toMediaTypeOrNull())
             val siteLocation = reading.site_location.toRequestBody("text/plain".toMediaTypeOrNull())
             val caNo = reading.ca_no.toRequestBody("text/plain".toMediaTypeOrNull())
-            val imagePath = reading.image_path.toRequestBody("text/plain".toMediaTypeOrNull())
+            val imagePath = "uploaded".toRequestBody("text/plain".toMediaTypeOrNull()) // ✅ Don't send local path
             val meterNo = reading.meter_no.toRequestBody("text/plain".toMediaTypeOrNull())
             val meterReading = reading.meter_reading.toRequestBody("text/plain".toMediaTypeOrNull())
             val latLong = reading.lat_long.toRequestBody("text/plain".toMediaTypeOrNull())
@@ -220,11 +210,16 @@ class UnifiedSyncWorker(
             val location = reading.location.toRequestBody("text/plain".toMediaTypeOrNull())
             val agency = reading.agency.toRequestBody("text/plain".toMediaTypeOrNull())
 
-            Log.d(TAG, "📤 Uploading Meter Reading with image: ${reading.meter_no}")
+            Log.d(TAG, "📤 Uploading Meter Reading (ocrReqId: ${reading.ocrReqId})")
+            Log.d("DEBUG_SYNC", "🔹 Reading Data Time: ${reading.reading_data_time}")
+            Log.d("DEBUG_SYNC", "🔹 Meter Reading: ${reading.meter_reading}")
+            Log.d("DEBUG_SYNC", "🔹 CA No: ${reading.ca_no}")
+            Log.d("DEBUG_SYNC", "🔹 Unit: ${reading.unit}")
 
             val response = apiService.uploadMeterImage(
                 token = OcrRetrofitClient.AUTH_TOKEN,
                 file = filePart,
+                ocrRequestId = ocrRequestId,
                 readingDateTime = readingDateTime,
                 siteLocation = siteLocation,
                 caNo = caNo,
@@ -241,14 +236,17 @@ class UnifiedSyncWorker(
                 meterModel = meterModel,
                 locationType = locationType,
                 location = location,
-                agency = agency
+                agency = agency,
+                accept = accept
             ).execute()
 
             if (response.isSuccessful) {
-                Log.d(TAG, "✅ Meter Reading with image uploaded successfully")
+                val responseBody = response.body()
+                Log.d(TAG, "✅ Meter Reading uploaded: ${responseBody.toString()}")
                 true
             } else {
-                Log.e(TAG, "❌ Upload failed: ${response.code()} - ${response.message()}")
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "❌ Upload failed: ${response.code()} - $errorBody")
                 false
             }
 
@@ -257,10 +255,6 @@ class UnifiedSyncWorker(
             false
         }
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // 3. SYNC MANUAL READINGS (WITH IMAGES)
-    // ═══════════════════════════════════════════════════════════
 
     private suspend fun syncManualReadings(): Pair<Int, Int> {
         var synced = 0
@@ -275,8 +269,7 @@ class UnifiedSyncWorker(
 
             unsyncedReadings.forEach { reading ->
                 try {
-                    // ✅ FIXED: Now properly uploads image with manual reading
-                    val success = uploadManualReadingWithImage(reading)
+                    val success = uploadManualReading(reading)
 
                     if (success) {
                         database.manualReadingDao().markAsSynced(reading.id)
@@ -299,22 +292,16 @@ class UnifiedSyncWorker(
         return Pair(synced, failed)
     }
 
-    // ✅ NEW: Upload manual reading WITH image (if exists)
-    private suspend fun uploadManualReadingWithImage(reading: ManualReadingEntity): Boolean {
+    private suspend fun uploadManualReading(reading: ManualReadingEntity): Boolean {
         return try {
-            // ✅ Check if image exists
-            val imageFile = if (reading.image_path.isNotEmpty()) {
-                File(reading.image_path).takeIf { it.exists() }
-            } else null
-
             val payload = mapOf(
                 "reading" to reading.reading,
-                "image_path" to (imageFile?.absolutePath ?: ""), // ✅ Send actual path or empty
+                "image_path" to reading.image_path,
                 "unit" to reading.unit,
                 "ocrRequestId" to reading.ocrRequestId
             )
 
-            Log.d(TAG, "📤 Uploading Manual Reading: ${reading.reading} (image: ${imageFile != null})")
+            Log.d(TAG, "📤 Uploading Manual Reading: $payload")
 
             val response = apiService.createManualReading(payload).execute()
 
@@ -322,7 +309,8 @@ class UnifiedSyncWorker(
                 Log.d(TAG, "✅ Manual Reading uploaded successfully")
                 true
             } else {
-                Log.e(TAG, "❌ Upload failed: ${response.code()} - ${response.message()}")
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "❌ Upload failed: ${response.code()} - $errorBody")
                 false
             }
 

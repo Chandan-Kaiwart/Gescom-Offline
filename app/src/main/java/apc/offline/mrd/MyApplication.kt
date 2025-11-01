@@ -2,7 +2,7 @@ package apc.offline.mrd
 
 import android.app.Application
 import android.util.Log
-import apc.offline.mrd.data.sync.OcrRequestSyncWorker
+
 
 
 class MyApplication : Application() {

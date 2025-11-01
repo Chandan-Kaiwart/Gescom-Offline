@@ -5,7 +5,8 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "ocr_request")
 data class OcrRequestEntity(
-    @PrimaryKey val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val localReqId: Int, // ✅ ADD THIS FIELD
     val agencyId: String,
     val boardCode: String,
     val consumerNo: String,
@@ -15,7 +16,7 @@ data class OcrRequestEntity(
     val subDivisionCode: String,
     val subDivisionName: String,
     val meterMake: String,
-    val isSynced: Boolean= false,
-    val reqReadingValues: String, // Must be String!
+    val reqReadingValues: String,
+    val isSynced: Boolean = false,
     val readingDate: Long = System.currentTimeMillis()
 )

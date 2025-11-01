@@ -2,7 +2,6 @@ package apc.offline.mrd.ocrlib
 
 import android.content.Context
 import android.content.Context.TELEPHONY_SERVICE
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
@@ -18,7 +17,6 @@ import android.text.Editable
 import android.view.LayoutInflater
 import android.view.View
 import apc.offline.mrd.ocrlib.network.OcrRetrofitClient
-import apc.offline.mrd.ocrlib.network.OcrApiService
 import android.view.ViewGroup
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -30,7 +28,6 @@ import androidx.navigation.NavController
 import androidx.navigation.findNavController
 import apc.offline.mrd.databinding.MainFragBinding
 import apc.offline.mrd.ocrlib.dataClasses.MeterReadingExceptionsResItem
-import apc.offline.mrd.ocrlib.dataClasses.MeterReadingUnitsRes
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.EditText
@@ -41,7 +38,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresPermission
 import androidx.cardview.widget.CardView
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -49,13 +45,11 @@ import apc.offline.mrd.R
 import apc.offline.mrd.ocrlib.dataClasses.MeterMakesRes
 import apc.offline.mrd.ocrlib.dataClasses.response.ManualReading
 import apc.offline.mrd.ocrlib.dataClasses.response.OcrResult
-import apc.offline.mrd.ocrlib.dataClasses.response.OcrResultLsm
 import apc.offline.mrd.ocrlib.util.ProgressDia
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Call
 import retrofit2.Callback
@@ -70,19 +64,17 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import androidx.fragment.app.activityViewModels
-import apc.offline.mrd.ocrlib.OcrViewModel
 import apc.offline.mrd.ocrlib.dataClasses.MeterMakesResItem
 import apc.offline.mrd.ocrlib.dataClasses.MeterReadingUnitsResItem
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import android.util.Base64
 import java.io.ByteArrayOutputStream
 import apc.offline.mrd.data.db.AppDatabase
 import apc.offline.mrd.data.entities.ManualReadingEntity
 import apc.offline.mrd.data.entities.MeterReadingEntity
-import kotlinx.coroutines.flow.first
+import apc.offline.mrd.data.entities.OcrRequestEntity
+import java.io.File
+import java.io.FileOutputStream
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 
 class MainFrag : Fragment() {
@@ -99,6 +91,10 @@ class MainFrag : Fragment() {
     override fun onAttach(context: Context) {
         super.onAttach(context)
         mContext = context
+    }
+
+    private fun generateLocalReqId(): Int {
+        return (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
     }
 
     override fun onCreateView(
@@ -183,7 +179,7 @@ class MainFrag : Fragment() {
 
             when (checkedId) {
 
-                apc.offline.mrd.R.id.OKRb -> {
+                R.id.OKRb -> {
                     vm.ocrRes.value!!.meter_status = "OK"
 
                     binding.statusLL.visibility = View.VISIBLE
@@ -205,7 +201,7 @@ class MainFrag : Fragment() {
 
                 }
 
-                apc.offline.mrd.R.id.IDFRb -> {
+                R.id.IDFRb -> {
                     vm.ocrRes.value!!.meter_status = "IDF"
 
                     binding.statusLL.visibility = View.VISIBLE
@@ -224,7 +220,7 @@ class MainFrag : Fragment() {
 
                 }
 
-                apc.offline.mrd.R.id.TDMRRb -> {
+                R.id.TDMRRb -> {
                     vm.ocrRes.value!!.meter_status = "TDMR"
                     binding.statusLL.visibility = View.VISIBLE
 
@@ -463,8 +459,6 @@ class MainFrag : Fragment() {
                 }
             }
         }
-
-
         binding.subBt.setOnClickListener {
             // Update ViewModel fields from UI
             vm.ocrRes.value?.ocr_npr = binding.ocrExps.text.toString()
@@ -513,11 +507,7 @@ class MainFrag : Fragment() {
             }
 
             val isManualMode = binding.ocrExps.text.isNotEmpty()
-
-            // ✅ FIX: Check vm.capturedImages instead of img_path for manual mode
             val haveCapturedImages = vm.capturedImages.value?.isNotEmpty() == true
-            val haveAllImages = vm.ocrRes.value!!.ocr_results.filter { it.img_path.isNotEmpty() }.size == vm.registers.value?.size
-
             val manualCount = vm.ocrResults.value!!.filter { it.manual_reading.isNotEmpty() }.size
             val ocrCount = vm.ocrRes.value!!.ocr_results.filter { it.ocr_exception_code == 1 }.size
             val allReadingsTaken = (manualCount + ocrCount) >= vm.registers.value?.size!!
@@ -553,193 +543,212 @@ class MainFrag : Fragment() {
                 }
 
                 else -> {
-                    // ✅ CRITICAL FIX: Save captured images to database
-                    val capturedImages = vm.capturedImages.value
-
-                    if (!capturedImages.isNullOrEmpty()) {
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            try {
-                                val database = AppDatabase.getDatabase(mContext)
-                                var savedCount = 0
-
-                                capturedImages.forEach { (position, bitmap) ->
-                                    try {
-                                        val ocrResult = vm.ocrResults.value?.get(position)
-                                        val unit = ocrResult?.unit ?: 1
-
-                                        // ✅ Save bitmap to file
-                                        val imagePath = saveBitmapToFile(
-                                            bitmap,
-                                            "image_${position}_${System.currentTimeMillis()}.jpg"
-                                        )
-                                        val meterReadingEntity = MeterReadingEntity(
-                                            id = 0,
-                                            reading_data_time = getCurrentTimestamp(),
-                                            site_location = "${vm.ocrRes.value?.address} .",
-                                            ca_no = vm.inp.value?.CONSUMER_NO?.ifEmpty { "1" } ?: "1",
-                                            meter_model = ocrResult?.ocr_meter_make?.ifEmpty {
-                                                vm.ocrRes.value?.meter_make
-                                            } ?: "",
-                                            image_path = imagePath,
-                                            meter_no = ocrResult?.ocr_mno ?: "",
-                                            meter_reading = ocrResult?.manual_reading?.ifEmpty {
-                                                ocrResult.ocr_reading
-                                            } ?: "",
-                                            mrn_text = ocrResult?.register ?: "",
-                                            lat_long = "${vm.ocrRes.value?.lat},${vm.ocrRes.value?.lng}",
-                                            address = "${vm.ocrRes.value?.address} .",
-                                            unit = unit.toString(),
-                                            meter_reader = vm.inp.value?.METER_READER_ID?.ifEmpty { "1" } ?: "1",
-                                            consumer = vm.inp.value?.CONSUMER_NO?.ifEmpty { "1" } ?: "1",
-                                            mru = "1",
-                                            isSynced = false,
-                                            agency = "1",
-                                            exception = "1", // ✅ FIX: Always "1"
-                                            location_type = "1",
-                                            ocr_unit = ocrResult?.ocr_unit ?: "",
-                                            location = "1",
-                                            created_at = System.currentTimeMillis(),
-                                            updated_at = System.currentTimeMillis(),
-                                            ocrReqId = vm.inp.value?.reqId ?: 0, // ✅ FIX: Server reqId
-                                            usedUrl = "OFFLINE_OCR",
-                                            responseTime = System.currentTimeMillis().toString(),
-                                            ocrRequestId = vm.inp.value?.reqId?.toString() ?: "0" // ✅ FIX: Server reqId as string
-                                        )
-
-                                        database.meterReadingDao().insertReading(meterReadingEntity)
-                                        savedCount++
-
-                                        // ✅ ALSO save ManualReadingEntity with SAME image (if manual mode)
-                                        if (isManualMode && !ocrResult?.manual_reading.isNullOrEmpty()) {
-                                            val unitName = when (unit.toString()) {
-                                                "1" -> "KWH"
-                                                "3" -> "KW"
-                                                "9" -> "MeterNo"
-                                                "13" -> "PF"
-                                                "14" -> "MeterMake"
-                                                else -> unit.toString()
-                                            }
-
-                                            val manualReadingEntity = ManualReadingEntity(
-                                                id = 0,
-                                                reading = ocrResult?.manual_reading ?: "",
-                                                image_path = imagePath, // ✅ SAME image path
-                                                unit = unitName,
-                                                ocrRequestId = vm.inp.value?.reqId ?: 0,
-                                                isSynced = false
-                                            )
-
-                                            database.manualReadingDao().insertManualReading(manualReadingEntity)
-
-                                            Log.d("IMAGE_SAVE", "✅ Manual reading with image: $unitName -> $imagePath")
-                                        }
-
-                                        Log.d("IMAGE_SAVE", "✅ Saved image: ${ocrResult?.register} -> $imagePath")
-
-                                    } catch (e: Exception) {
-                                        Log.e("IMAGE_SAVE", "❌ Failed position $position: ${e.message}")
-                                    }
-                                }
-
-                                // ✅ Save additional manual readings (Meter Make, Meter No)
-                                if (isManualMode) {
-                                    manReadings.forEach { (unit, path, reading) ->
-                                        try {
-                                            val unitName = when (unit) {
-                                                "1" -> "KWH"
-                                                "3" -> "KW"
-                                                "9" -> "MeterNo"
-                                                "13" -> "PF"
-                                                "14" -> "MeterMake"
-                                                else -> unit
-                                            }
-
-                                            // ✅ Only save if not already saved above
-                                            val alreadySaved = capturedImages.values.any { bitmap ->
-                                                val pos = capturedImages.keys.first { capturedImages[it] == bitmap }
-                                                vm.ocrResults.value?.get(pos)?.unit.toString() == unit
-                                            }
-
-                                            if (!alreadySaved) {
-                                                val manualEntity = ManualReadingEntity(
-                                                    id = 0,
-                                                    reading = reading,
-                                                    image_path = path, // Empty if no image (like meter make)
-                                                    unit = unitName,
-                                                    ocrRequestId = vm.inp.value?.reqId ?: 0,
-                                                    isSynced = false
-                                                )
-                                                database.manualReadingDao().insertManualReading(manualEntity)
-                                                Log.d("IMAGE_SAVE", "✅ Extra manual: $unitName = $reading")
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e("IMAGE_SAVE", "❌ Extra manual failed: ${e.message}")
-                                        }
-                                    }
-                                }
-
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        mContext,
-                                        "✅ $savedCount images saved locally!",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    val resultData = mapOf(
-                                        "status" to "success",
-                                        "message" to "Data saved locally",
-                                        "saved_count" to savedCount,
-                                        "consumer_no" to vm.inp.value?.CONSUMER_NO,
-                                        "meter_no" to vm.ocrRes.value?.meter_no,
-                                        "meter_make" to vm.ocrRes.value?.meter_make,
-                                        "meter_status" to vm.ocrRes.value?.meter_status,
-                                        "readings" to vm.ocrResults.value?.map { result ->
-                                            mapOf(
-                                                "register" to result.register,
-                                                "reading" to (result.manual_reading.ifEmpty {
-                                                    result.ocr_reading
-                                                }),
-                                                "unit" to result.unit
-                                            )
-                                        }
-                                    )
-
-                                    val resultJson = Gson().toJson(resultData)
-
-                                    // âœ… CALLBACK CALL KARO
-                                    OcrLauncher.sendResultBack(resultJson)
-                                    // Navigate back
-                                    navController.navigateUp()
-                                }
-
-                            } catch (e: Exception) {
-                                Log.e("IMAGE_SAVE", "❌ Error: ${e.message}", e)
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        mContext,
-                                        "Error saving: ${e.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        }
-                    } else {
-                        Toast.makeText(mContext, "No images captured!", Toast.LENGTH_SHORT).show()
-                    }
+                    // ✅ FULLY OFFLINE SUBMISSION
+                    saveCompleteDataOffline(manReadings)
                 }
             }
         }
+    }
 
+
+    private fun saveCompleteDataOffline(manReadings: List<Triple<String, String, String>>) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val database = AppDatabase.getDatabase(mContext)
+
+                // ✅ STEP 1: Generate or get local request ID
+                val localReqId = vm.inp.value?.reqId ?: generateLocalReqId()
+                vm.inp.value?.reqId = localReqId
+                vm.ocrRes.value?.input?.reqId = localReqId
+
+                Log.d("OFFLINE_SAVE", "🔹 Using Local Request ID: $localReqId")
+
+                // ✅ STEP 2: Save OCR Request FIRST
+                try {
+                    val inp = vm.inp.value!!
+                    val reqReadingValuesJson = Gson().toJson(inp.REQ_READING_VALUES)
+
+                    val ocrRequestEntity = OcrRequestEntity(
+                        id = 0,
+                        localReqId = localReqId,
+                        agencyId = inp.AGENCY_ID,
+                        boardCode = inp.BOARD_CODE,
+                        consumerNo = inp.CONSUMER_NO,
+                        meterReaderId = inp.METER_READER_ID,
+                        meterReaderMobile = inp.METER_READER_MOBILE_NO,
+                        meterReaderName = inp.METER_READER_NAME,
+                        subDivisionCode = inp.SUB_DIVISION_CODE,
+                        subDivisionName = inp.SUB_DIVISION_NAME,
+                        meterMake = vm.ocrRes.value?.meter_make ?: "",
+                        reqReadingValues = reqReadingValuesJson,
+                        isSynced = false,
+                        readingDate = System.currentTimeMillis()
+                    )
+
+                    database.ocrRequestDao().insertRequest(ocrRequestEntity)
+                    Log.d("OFFLINE_SAVE", "✅ OCR Request saved")
+                } catch (e: Exception) {
+                    Log.e("OFFLINE_SAVE", "❌ OCR Request failed: ${e.message}")
+                }
+
+                // ✅ STEP 3: Save ALL images with meter readings
+                val capturedImages = vm.capturedImages.value
+                var savedCount = 0
+
+                if (!capturedImages.isNullOrEmpty()) {
+                    capturedImages.forEach { (position, bitmap) ->
+                        try {
+                            val ocrResult = vm.ocrResults.value?.get(position)
+                            val unit = ocrResult?.unit ?: 1
+
+                            // ✅ Save bitmap to file
+                            val imagePath = saveBitmapToFile(
+                                bitmap,
+                                "img_${localReqId}_${position}_${System.currentTimeMillis()}.jpg"
+                            )
+
+                            val meterReadingEntity = MeterReadingEntity(
+                                id = 0,
+                                reading_data_time = getCurrentTimestamp(),
+                                site_location = "${vm.ocrRes.value?.address} .",
+                                ca_no = vm.inp.value?.CONSUMER_NO?.ifEmpty { "1" } ?: "1",
+                                meter_model = ocrResult?.ocr_meter_make?.ifEmpty {
+                                    vm.ocrRes.value?.meter_make
+                                } ?: "",
+                                image_path = imagePath,
+                                meter_no = ocrResult?.ocr_mno ?: "",
+                                meter_reading = ocrResult?.manual_reading?.ifEmpty {
+                                    ocrResult.ocr_reading
+                                } ?: "",
+                                mrn_text = ocrResult?.register ?: "",
+                                lat_long = "${vm.ocrRes.value?.lat},${vm.ocrRes.value?.lng}",
+                                address = "${vm.ocrRes.value?.address} .",
+                                unit = unit.toString(),
+                                meter_reader = vm.inp.value?.METER_READER_ID?.ifEmpty { "1" } ?: "1",
+                                consumer = vm.inp.value?.CONSUMER_NO?.ifEmpty { "1" } ?: "1",
+                                mru = "1",
+                                isSynced = false,
+                                agency = "1",
+                                exception = "1",
+                                location_type = "1",
+                                ocr_unit = ocrResult?.ocr_unit ?: "",
+                                location = "1",
+                                created_at = System.currentTimeMillis(),
+                                updated_at = System.currentTimeMillis(),
+                                ocrReqId = localReqId,
+                                usedUrl = "OFFLINE_OCR",
+                                responseTime = System.currentTimeMillis().toString(),
+                                ocrRequestId = localReqId.toString()
+                            )
+
+                            database.meterReadingDao().insertReading(meterReadingEntity)
+                            savedCount++
+                            Log.d("DEBUG_SAVE", "🔹 Image Path: $imagePath")
+                            Log.d("DEBUG_SAVE", "🔹 Meter Reading: ${ocrResult?.manual_reading?.ifEmpty { ocrResult.ocr_reading }}")
+                            Log.d("DEBUG_SAVE", "🔹 Unit: $unit")
+                            Log.d("DEBUG_SAVE", "🔹 CA No: ${vm.inp.value?.CONSUMER_NO}")
+                            Log.d("OFFLINE_SAVE", "✅ Meter Reading $position saved: ${ocrResult?.register}")
+
+                        } catch (e: Exception) {
+                            Log.e("OFFLINE_SAVE", "❌ Failed position $position: ${e.message}")
+                        }
+                    }
+                }
+
+                // ✅ STEP 4: Save Manual Readings (if manual mode)
+                val isManualMode = binding.ocrExps.text.isNotEmpty()
+
+                if (isManualMode) {
+                    manReadings.forEach { (unit, path, reading) ->
+                        try {
+                            val unitName = when (unit) {
+                                "1" -> "KWH"
+                                "3" -> "KW"
+                                "9" -> "MeterNo"
+                                "13" -> "PF"
+                                "14" -> "MeterMake"
+                                else -> unit
+                            }
+
+                            // ✅ Check if already saved with image
+                            val alreadySaved = capturedImages?.values?.any { bitmap ->
+                                val pos = capturedImages.keys.first { capturedImages[it] == bitmap }
+                                vm.ocrResults.value?.get(pos)?.unit.toString() == unit
+                            } ?: false
+
+                            if (!alreadySaved) {
+                                val manualEntity = ManualReadingEntity(
+                                    id = 0,
+                                    reading = reading,
+                                    image_path = path,
+                                    unit = unitName,
+                                    ocrRequestId = localReqId,
+                                    isSynced = false
+                                )
+                                database.manualReadingDao().insertManualReading(manualEntity)
+                                Log.d("OFFLINE_SAVE", "✅ Extra manual: $unitName = $reading")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("OFFLINE_SAVE", "❌ Extra manual failed: ${e.message}")
+                        }
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        mContext,
+                        "✅ Saved offline! ($savedCount readings)\nSync when online.",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    // ✅ Return result
+                    val resultData = mapOf(
+                        "status" to "success",
+                        "message" to "Data saved locally",
+                        "local_req_id" to localReqId,
+                        "saved_count" to savedCount,
+                        "consumer_no" to vm.inp.value?.CONSUMER_NO,
+                        "meter_no" to vm.ocrRes.value?.meter_no,
+                        "meter_make" to vm.ocrRes.value?.meter_make,
+                        "meter_status" to vm.ocrRes.value?.meter_status,
+                        "readings" to vm.ocrResults.value?.map { result ->
+                            mapOf(
+                                "register" to result.register,
+                                "reading" to (result.manual_reading.ifEmpty {
+                                    result.ocr_reading
+                                }),
+                                "unit" to result.unit
+                            )
+                        }
+                    )
+
+                    val resultJson = Gson().toJson(resultData)
+                    OcrLauncher.sendResultBack(resultJson)
+                    navController.navigateUp()
+                }
+
+            } catch (e: Exception) {
+                Log.e("OFFLINE_SAVE", "❌ Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        mContext,
+                        "Error saving: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun saveBitmapToFile(bitmap: Bitmap, fileName: String): String {
-        val file = java.io.File(mContext.filesDir, fileName)
+        val file = File(mContext.filesDir, fileName)
         file.createNewFile()
 
         val bos = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, bos)
         val bitmapData = bos.toByteArray()
 
-        java.io.FileOutputStream(file).use { fos ->
+        FileOutputStream(file).use { fos ->
             fos.write(bitmapData)
             fos.flush()
         }
@@ -1361,7 +1370,7 @@ class MainFrag : Fragment() {
     }
 
 
-    fun postReaderTracking(context: Context, payload: org.json.JSONObject?, res: String) {
+    fun postReaderTracking(context: Context, payload: JSONObject?, res: String) {
         Log.d("TRACK>>req", payload.toString())
 
         // Convert JSONObject to Map
@@ -1401,146 +1410,24 @@ class MainFrag : Fragment() {
                 }
             })
     }
-
-
-    // ✅ COMPLETE FIX for MainFrag.kt
-
-    // 1. ✅ FIX: Update createOcrRequest() function
     fun createOcrRequest() {
         val inp = vm.inp.value!!
-        Log.d("INPUT_CLASS>>", vm.inp.value!!::class.java.name)
 
-        val payload = mapOf(
-            "agencyId" to inp.AGENCY_ID,
-            "boardCode" to inp.BOARD_CODE,
-            "consumerNo" to inp.CONSUMER_NO,
-            "meterReaderId" to inp.METER_READER_ID,
-            "meterReaderMobileNo" to inp.METER_READER_MOBILE_NO,
-            "meterReaderName" to inp.METER_READER_ID,
-            "subDivisionCode" to inp.SUB_DIVISION_CODE,
-            "subDivisionName" to inp.SUB_DIVISION_NAME,
-            "meterMake" to (inp.METER_MAKE ?: ""),
-            "reqReadingValues" to inp.REQ_READING_VALUES
-        )
+        // ✅ Generate local reqId instead of API call
+        val localReqId = generateLocalReqId()
 
-        Log.d("REQ>>", payload.toString())
+        vm.ocrRes.value?.input?.reqId = localReqId
+        vm.inp.value?.reqId = localReqId
 
-        // ✅ FIRST: Save to local DB immediately
-        saveOcrRequestToLocal(-1, inp) // -1 = not synced yet
+        // ✅ Update TextView immediately with LOCAL ID
+        binding.verTv.text = "Req$localReqId"
 
-        // ✅ THEN: Try to sync to API
-        OcrRetrofitClient.getApiService().createOcrRequest(payload)
-            .enqueue(object : Callback<Map<String, Any>> {
-                override fun onResponse(
-                    call: Call<Map<String, Any>>,
-                    response: Response<Map<String, Any>>
-                ) {
-                    if (response.isSuccessful) {
-                        response.body()?.let { result ->
-                            val reqId = (result["id"] as Double).toInt()
-                            vm.ocrRes.value?.input?.reqId = reqId
-                            vm.inp.value?.reqId = reqId
+        Log.d("REQ>>", "Local Request ID created: $localReqId")
 
-                            // ✅ Update TextView
-                            binding.verTv.text = "Req$reqId"
-
-                            Log.d("REQ>>", "Request synced to API with ID: $reqId")
-
-                            // ✅ Update local DB entry as synced
-                            updateOcrRequestAsSynced(reqId)
-                        }
-                    } else {
-                        Log.e("REQ>>", "API Error: ${response.code()}")
-                        // ✅ Local entry already saved - will sync later
-                    }
-                }
-
-                override fun onFailure(call: Call<Map<String, Any>>, t: Throwable) {
-                    Log.e("REQ>>", "API Failure: ${t.message}", t)
-                    // ✅ Local entry already saved - will sync later
-                }
-            })
+        // ✅ Don't save to DB here - will save on submit button
+        Toast.makeText(mContext, "Request ID: $localReqId", Toast.LENGTH_SHORT).show()
     }
 
-    // 2. ✅ NEW: Update local DB as synced after API success
-    private fun updateOcrRequestAsSynced(apiReqId: Int) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val database = AppDatabase.getDatabase(mContext)
-
-                // Get the last inserted unsynced request
-                val unsyncedRequests = database.ocrRequestDao()
-                    .getUnsyncedRequests()
-                    .first()
-
-                if (unsyncedRequests.isNotEmpty()) {
-                    val lastRequest = unsyncedRequests.first()
-                    database.ocrRequestDao().markAsSynced(lastRequest.id)
-
-                    Log.d("LOCAL_DB>>", "✅ Marked request ${lastRequest.id} as synced")
-                }
-
-            } catch (e: Exception) {
-                Log.e("LOCAL_DB>>", "❌ Failed to update sync status: ${e.message}")
-            }
-        }
-    }
-
-    // 3. ✅ UPDATED: saveOcrRequestToLocal - NO duplicate if already exists
-    private fun saveOcrRequestToLocal(apiReqId: Int, inp: apc.offline.mrd.ocrlib.dataClasses.request.OcrRequest) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val database = AppDatabase.getDatabase(mContext)
-
-                // ✅ Check if already exists for this consumer
-                val existingRequests = database.ocrRequestDao()
-                    .getRequestsByConsumer(inp.CONSUMER_NO)
-                    .first()
-
-                // ✅ Check if we already have an unsynced request for this consumer
-                val hasUnsynced = existingRequests.any { !it.isSynced }
-
-                if (hasUnsynced) {
-                    Log.d("LOCAL_DB>>", "⚠️ Unsynced request already exists - skipping")
-                    return@launch
-                }
-
-                // Convert REQ_READING_VALUES list to JSON string
-                val reqReadingValuesJson = Gson().toJson(inp.REQ_READING_VALUES)
-
-                val ocrRequestEntity = apc.offline.mrd.data.entities.OcrRequestEntity(
-                    id = 0, // Auto-increment by Room
-                    agencyId = inp.AGENCY_ID,
-                    boardCode = inp.BOARD_CODE,
-                    consumerNo = inp.CONSUMER_NO,
-                    meterReaderId = inp.METER_READER_ID,
-                    meterReaderMobile = inp.METER_READER_MOBILE_NO,
-                    meterReaderName = inp.METER_READER_ID,
-                    subDivisionCode = inp.SUB_DIVISION_CODE,
-                    subDivisionName = inp.SUB_DIVISION_NAME,
-                    meterMake = inp.METER_MAKE ?: "",
-                    reqReadingValues = reqReadingValuesJson,
-                    isSynced = (apiReqId != -1), // ✅ Only synced if API returned ID
-                    readingDate = System.currentTimeMillis()
-                )
-
-                // Insert into local database
-                database.ocrRequestDao().insertRequest(ocrRequestEntity)
-
-                withContext(Dispatchers.Main) {
-                    Log.d("LOCAL_DB>>", "✅ OCR Request saved locally (synced: ${apiReqId != -1})")
-                    if (apiReqId == -1) {
-                        Toast.makeText(mContext, "Saved locally - will sync later", Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Log.e("LOCAL_DB>>", "❌ Failed to save: ${e.message}", e)
-                }
-            }
-        }
-    }
     fun fetchMeterReadingUnits(context: Context) {
         Log.e("Units>>", "Fetching...")
 
@@ -1686,7 +1573,9 @@ class MainFrag : Fragment() {
             meterModel = requestBodies["meter_model"]!!,
             locationType = requestBodies["location_type"]!!,
             location = requestBodies["location"]!!,
-            agency = requestBodies["agency"]!!
+            agency = requestBodies["agency"]!!,
+            accept = requestBodies["accept"]!!,
+            ocrRequestId = requestBodies["ocrRequestId"]!!,
         ).enqueue(object : Callback<UploadMeterReadingImageRes> {
             override fun onResponse(
                 call: Call<UploadMeterReadingImageRes>,
@@ -1734,8 +1623,8 @@ class MainFrag : Fragment() {
                 Log.e("Upload>>", "Failure: ${t.message}", t)
 
                 val errorMessage = when (t) {
-                    is java.net.SocketTimeoutException -> "Request timed out"
-                    is java.net.UnknownHostException -> "No internet connection"
+                    is SocketTimeoutException -> "Request timed out"
+                    is UnknownHostException -> "No internet connection"
                     else -> t.message ?: "Unknown error"
                 }
 
@@ -1747,15 +1636,15 @@ class MainFrag : Fragment() {
         })
     }
 
-    private fun bitmapToFile(bitmap: Bitmap, fileName: String): java.io.File {
-        val file = java.io.File(mContext.cacheDir, fileName)
+    private fun bitmapToFile(bitmap: Bitmap, fileName: String): File {
+        val file = File(mContext.cacheDir, fileName)
         file.createNewFile()
 
-        val bos = java.io.ByteArrayOutputStream()
+        val bos = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos)
         val bitmapData = bos.toByteArray()
 
-        java.io.FileOutputStream(file).use { fos ->
+        FileOutputStream(file).use { fos ->
             fos.write(bitmapData)
             fos.flush()
         }
@@ -1800,7 +1689,7 @@ class MainFrag : Fragment() {
         }
     }
 
-    fun removeManualData(jsonString: String, mContext: android.content.Context): String {
+    fun removeManualData(jsonString: String, mContext: Context): String {
         var cleanedJson = jsonString
         try {
             val root = JSONObject(jsonString)

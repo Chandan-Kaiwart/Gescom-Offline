@@ -19,7 +19,7 @@ import java.util.concurrent.Executors
         MeterReadingEntity::class,
         ManualReadingEntity::class
     ],
-    version = 4, // ✅ Updated to version 4
+    version = 5, // ✅ Updated to version 4
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
